@@ -16,8 +16,6 @@ f.str = 18
 f.take_level Fighter
 f.levels.first.take_wp Weapon.find_by_name(:katana)
 f.levels.first.specialize Weapon.find_by_name(:katana)
-f.levels.first.specialize Weapon.find_by_name(:katana)
-f.levels.first.specialize Weapon.find_by_name(:katana)
 
 p.take_level Paladin
 f.levels.first.take_wp Weapon.find_by_name(:katana)

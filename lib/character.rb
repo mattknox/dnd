@@ -1,7 +1,7 @@
 # for now, this holds my second pass at implementing AD&D-style character generation,
 # and ultimately, fighting in a CLI.
 
-load "util.rb"
+require File.expand_path("../util", __FILE__)
 
 class User
   attr_accessor :id
@@ -10,25 +10,63 @@ class User
   end
 end
 
+class Round
+  ATTRS = [:participants, :action_order, :fight]
+  attr_accessor *ATTRS
+  def initialize(fight, participants)
+    @participants = participants
+    @participants.map { |p| p.round_num += 1; p.reset_round }
+    @fight = fight
+    set_initiative!
+    puts "\nstarting round!"
+  end
+
+  def set_initiative!
+    @action_order = participants.map { |p| [p] * p.attacks_remaining }.flatten
+  end
+
+  def finished?
+    self.participants.select { |p| p.conscious? }.map { |p| p.team }.uniq.size == 1
+  end
+
+  def fight_round
+    action_order.each do |c|
+      puts "c.inspect=#{c.inspect}"
+      target = participants.select { |x| (c.team != x.team) && x.conscious? }.first
+      puts "no enemies left for #{c.name}" if target.nil?
+      return if target.nil?
+      puts "#{c.character.name} of #{c.team} attacking #{target.character.name} of #{target.team}"
+      c.attack target
+    end
+  end
+end
+
 class CharacterState
   include Util
-  ATTRS = :character, :state, :primary_weapon, :curr_hp, :attacks_remaining, :base_armor
+  ATTRS = :character, :state, :primary_weapon, :curr_hp, :attacks_remaining, :base_armor, :team, :round_num
   attr_accessor *ATTRS
 
   def initialize(params = {})
     ATTRS.map { |s| send("#{s}=", params[s])}
     self.base_armor ||= 0
+    self.team ||= self.name
+    self.round_num ||= 0
     reset
+  end
+
+  def inspect
+    "#{character.name} round:#{round_num}"
   end
 
   def reset
     self.curr_hp = character.hp
+    self.round_num = 0
     reset_round
     self.state = :active if curr_hp.to_i > 0
   end
 
   def reset_round
-    self.attacks_remaining = character.attacks
+    self.attacks_remaining = attacks_this_round
   end
 
   def name; character.name end
@@ -43,7 +81,7 @@ class CharacterState
 
   def damage
     if primary_weapon
-      [primary_weapon.damage, character.bonuses[:damage]].join(" ")
+      [primary_weapon.damage, character.bonuses[:damage]].join(" ").strip
     else
       character.unarmed_damage
     end
@@ -65,13 +103,27 @@ class CharacterState
       conscious?
   end
 
+  def attacks_this_round
+    floor, ceil = [character.attacks.floor, character.attacks.ceil]
+    round_num.odd? ? floor : ceil
+  end
+
   def conscious?
     self.state == :active
+  end
+
+  def on_hit(target)
+    primary_weapon.blank? && on_unarmed_strike(target)
   end
 
   def attack(target)
     unless target.conscious?
       puts "#{target.name} is already down."
+      return
+    end
+
+    unless conscious?
+      puts "#{self.name} is unconscious"
       return
     end
 
@@ -110,18 +162,22 @@ class Character
   end
 
   def unarmed_damage
-    "1d2"
+    bonus = bonuses[:unarmed] && bonuses[:unarmed][:damage]
+    Util.simplify(bonus) || "1d2"
   end
 
   def defeat(target)
     self.gain_xp target.xp_value(self)
   end
 
+  def attribute_bonuses
+    []
+  end
+
   def bonuses
     # build a bigass hash of bonuses per-thing.
-    h = { }
-    bl = self.levels.map { |l| l.weapon_profs.map { |wp| wp.bonuses }}.array_flatten.compact
-    bl.inject({ }) { |m,x| m.join(x) }
+    all_bonuses = self.levels.map { |l| l.bonuses } + self.attribute_bonuses
+    all_bonuses.array_flatten.compact.inject({ }) { |m,x| m.join(x) }
   end
 
   def attacks
@@ -178,9 +234,11 @@ class Character
 
   def class_levels
     h = self.levels.group_by { |x| x }
+    result = classes.group_by { |x| x }
     h.keys.each do |k|
-      h[k] = h[k].size
+      result[k.char_class] = h[k].size
     end
+    result
   end
 
   def wp_slots_open
@@ -189,7 +247,7 @@ class Character
 end
 
 class Level
-  ATTRS = :character, :char_class, :n, :weapon_profs, :non_weapon_profs, :wp_slots, :nwp_slots
+  ATTRS = :character, :char_class, :n, :weapon_profs, :non_weapon_profs, :wp_slots, :nwp_slots, :level_bonuses
   attr_reader *ATTRS
   def initialize(params)
     ATTRS.map { |s| instance_variable_set("@#{s}".to_sym, params[s])}
@@ -227,6 +285,10 @@ class Level
                                  :attack => "0.5"
                                },
                                :cost => 1)
+  end
+
+  def bonuses
+    self.weapon_profs.map { |wp| wp.bonuses } + self.level_bonuses
   end
 end
 
@@ -283,6 +345,9 @@ class CharClass
       (class << self; self; end).send(:define_method, :requirements) do
         h
       end
+    end
+
+    def on_unarmed_strike(opponent)
     end
 
     def first_level(h)
@@ -357,71 +422,16 @@ class Paladin < CharClass
 end
 
 class Monk < CharClass
-  reqs :str => 15
+  reqs :str => 15, :wis => 15, :dex => 15, :con => 11
+  first_level :wp_slots => 4, :nwp_slots => 3
 
-  def self.hd
-    6
-  end
-end
+  class << self
+    def hd
+      8
+    end
 
-require "test/unit"
-require "mocha/setup"
+    def buff(character)
 
-class CharacterGenerationTest < Test::Unit::TestCase
-  # # wishful_thinking: I want to make this work:
-
-  # c = current_user.generate_character :name => "alpha", :scheme => :three_dice_twice
-  # # should have attributes set now.
-
-  # c.take_level :fighter
-  # should now have hitpoints
-
-  # d = Weapon.find_by_name :daikyu
-  # c.buy d
-  # c.take_proficiency d
-  # c.specialize d
-  # k = Skill.find_by_name :karate
-  # c.take_proficiency k
-
-  def current_user
-    @current_user ||= User.new.tap { |u| u.id = 1 }
-  end
-
-  def test_character_generation
-    c = current_user.generate_character({ :name => "alpha",
-                                          :scheme => :three_dice_twice})
-    assert c.is_a? Character
-    assert_equal "alpha", c.name, "name should have passed through"
-    assert_equal c.user, current_user, "user should pass through"
-    Util.stubs(:roll).with("3d6").returns 12
-    c.set_attrs!
-    assert_equal 12, c.str
-    assert c.can_be?(Fighter), "str is high enough, so fighter should be available?"
-    assert !c.can_be?(Paladin)
-    assert c.take_level Fighter
-    assert_equal 10, c.hp
-    assert_equal 1, c.levels.size
-    assert_equal [Fighter], c.classes
-    assert_equal c.wp_slots_open, 4
-    assert c.levels.first.take_wp Weapon.find_by_name(:katana)
-    c.levels.first.take_skill Skill.find_by_name(:karate)
-    assert_equal c.wp_slots_open, 2
-  end
-
-  def test_fight
-    f = current_user.generate_character(:name => "fighter", :scheme => :three_dice_twice)
-    p = current_user.generate_character(:name => "paladin", :scheme => :three_dice_twice)
-    Util.stubs(:roll).with("3d6").returns 17
-    Util.stubs(:roll).with("d20").returns 17
-    f.set_attrs!
-    f.take_level Fighter
-    assert f.levels.first.take_wp Weapon.find_by_name(:katana)
-    assert f.levels.first.specialize Weapon.find_by_name(:katana)
-    assert_nil f.levels.first.specialize(Weapon.find_by_name(:katana)), "you cannot double-specialize"
-    assert_equal f.wp_slots_open, 2
-
-    p.set_attrs!
-    p.take_level Paladin
-
+    end
   end
 end
