@@ -54,7 +54,7 @@ module Util
 
   def self.roll(rollspec)
     h = parse_rollspec(rollspec)
-    mult = h.delete(:mult)
+    mult = h.delete(:mult) || 1
     (h.delete(:base).to_i + h.delete(:const).to_i + h.map { |faces, times| roll_dice(times, faces)}.sum) * mult
   end
 

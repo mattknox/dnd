@@ -1,6 +1,7 @@
 require "test/unit"
 require "mocha/setup"
 require File.expand_path("../../lib/character", __FILE__)
+require "debugger"
 
 class CharacterTest < Test::Unit::TestCase
   # # wishful_thinking: I want to make this work:
@@ -68,12 +69,16 @@ class CharacterTest < Test::Unit::TestCase
     assert_nil p.levels.first.specialize(k), "paladin cannot specialize"
 
     fs = f.new_state
-    fs.primary_weapon = Weapon.find_by_name(:katana)
+    fs.primary_weapon = k
+    fs.reset
+    assert_equal fs.primary_weapon, k
     assert_equal "1d10 2", fs.damage
     assert_equal 2, fs.attacks_remaining
 
     ps = p.new_state
-    ps.primary_weapon = Weapon.find_by_name(:katana)
+    ps.primary_weapon = k
+    ps.reset
+    assert_equal  ps.primary_weapon, k
     assert_equal "1d10", ps.damage
     assert_equal 1, ps.attacks_remaining
 
@@ -93,6 +98,7 @@ class CharacterTest < Test::Unit::TestCase
     p2.name = "paladin2"
     ps2 = p2.new_state
     ps2.primary_weapon = Weapon.find_by_name(:katana)
+    ps2.reset
     assert_equal "1d10", ps2.damage
     assert_equal 1.0, ps2.attacks_remaining
 

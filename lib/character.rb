@@ -104,7 +104,8 @@ class CharacterState
   end
 
   def attacks_this_round
-    floor, ceil = [character.attacks.floor, character.attacks.ceil]
+    att = @primary_weapon ? character.attacks : character.unarmed_attacks
+    floor, ceil = [att.floor, att.ceil]
     round_num.odd? ? floor : ceil
   end
 
