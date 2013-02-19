@@ -124,5 +124,11 @@ class CharacterTest < Test::Unit::TestCase
     assert c.can_take_level?
     assert c.take_level Monk
     assert_equal "1d3", c.unarmed_damage
+    assert c.levels.first.take_skill(:karate)
+    assert_equal "1d6", c.unarmed_damage
+    assert_equal 3.0, c.unarmed_attacks
+    assert c.levels.first.take_skill(:boxing)
+    assert_equal 4.0, c.unarmed_attacks
+    assert_equal "1d6 2.0", c.unarmed_damage
   end
 end

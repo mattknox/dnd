@@ -165,6 +165,10 @@ class Character
     Util.simplify(bonuses[:unarmed_damage]) || "1d2"
   end
 
+  def unarmed_attacks
+    Util.simplify(bonuses[:unarmed_attacks]).to_f || 1.0
+  end
+
   def defeat(target)
     self.gain_xp target.xp_value(self)
   end
@@ -303,9 +307,9 @@ SKILLS = {
     :name => :boxing,
     :cost => 1,
     :bonuses => {
-      :unarmed_damage  => "+ 2",
-      :unarmed_to_hit  => "+ 1",
-      :unarmed_attacks => "+ 1"
+      :unarmed_damage  => "2",
+      :unarmed_to_hit  => "1",
+      :unarmed_attacks => "1"
     }
   }
 }

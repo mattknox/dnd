@@ -25,6 +25,11 @@ module Util
     mult  = mults.map { |x| x.gsub(/x/i, "").to_f}.mult_product
     const = constants.map { |x| x.to_f }.sum
     unspecd_dice = rollhash.delete(nil)
+    if base && !base.match(/d/i)
+      # base is a pure numeric
+      const += base.to_f
+      base = nil
+    end
     if 1 != rollhash.size && unspecd_dice
       raise "rollspec: #{rollspec} is invalid."
     elsif rollhash.size == 1
@@ -35,7 +40,6 @@ module Util
       h[:mult] = mult if mult != 1
       h[:const] = const if const.to_f != 0.0
       h[:base] = base if base && base.to_f != 0.0
-      { :mult => mult, :const => const, :base => base}
     end
   end
 
