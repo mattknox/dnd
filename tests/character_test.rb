@@ -1,7 +1,5 @@
 require "test/unit"
 require "mocha/setup"
-
-puts File.expand_path("../../lib/character", __FILE__)
 require File.expand_path("../../lib/character", __FILE__)
 
 class CharacterTest < Test::Unit::TestCase

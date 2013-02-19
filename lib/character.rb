@@ -162,8 +162,7 @@ class Character
   end
 
   def unarmed_damage
-    bonus = bonuses[:unarmed] && bonuses[:unarmed][:damage]
-    Util.simplify(bonus) || "1d2"
+    Util.simplify(bonuses[:unarmed_damage]) || "1d2"
   end
 
   def defeat(target)
@@ -270,7 +269,8 @@ class Level
     end
   end
 
-  def take_skill(skill)
+  def take_skill(sym_or_skill)
+    skill = Skill.find_by_name(sym_or_skill) unless sym_or_skill.is_a?(Skill)
     if wp_slots > weapon_profs.size
       @weapon_profs << skill
     end
@@ -288,7 +288,7 @@ class Level
   end
 
   def bonuses
-    self.weapon_profs.map { |wp| wp.bonuses } + self.level_bonuses
+    self.weapon_profs.map { |wp| wp.bonuses } + [self.level_bonuses]
   end
 end
 
@@ -297,8 +297,8 @@ SKILLS = {
     :name => :karate,
     :cost => 1,
     :bonuses => {
-      :unarmed_damage  => "base 1d6",
-      :unarmed_attacks => "base 3"}},
+      :unarmed_damage  => "base1d6",
+      :unarmed_attacks => "base3"}},
   :boxing => {
     :name => :boxing,
     :cost => 1,
@@ -423,7 +423,7 @@ end
 
 class Monk < CharClass
   reqs :str => 15, :wis => 15, :dex => 15, :con => 11
-  first_level :wp_slots => 4, :nwp_slots => 3
+  first_level :wp_slots => 4, :nwp_slots => 3, :level_bonuses => { :unarmed_damage => "base1d3"}
 
   class << self
     def hd
@@ -431,7 +431,7 @@ class Monk < CharClass
     end
 
     def buff(character)
-
+      super
     end
   end
 end

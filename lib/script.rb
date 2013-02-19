@@ -1,4 +1,4 @@
-load "character.rb"
+load "lib/character.rb"
 
 u = User.new
 u.id = 1
@@ -18,7 +18,7 @@ f.levels.first.take_wp Weapon.find_by_name(:katana)
 f.levels.first.specialize Weapon.find_by_name(:katana)
 
 p.take_level Paladin
-f.levels.first.take_wp Weapon.find_by_name(:katana)
+p.levels.first.take_wp Weapon.find_by_name(:katana)
 
 fs = f.new_state
 fs.primary_weapon = Weapon.find_by_name(:katana)
