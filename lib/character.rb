@@ -113,8 +113,8 @@ class CharacterState
     self.state == :active
   end
 
-  def on_hit(target)
-    primary_weapon.blank? && on_unarmed_strike(target)
+  def on_hit(target, tn, roll)
+    primary_weapon.nil? && character.on_unarmed_strike(target, tn, roll)
   end
 
   def attack(target)
@@ -137,7 +137,10 @@ class CharacterState
     tn = 10 + target.armor_rating - to_hit(target)
     r  = Util.roll("1d20")
     puts "#{self.name} attacks #{target.name} tn:#{tn} r:#{r}"
-    (r >= tn) && target.take_damage(Util.roll(damage))
+    if r >= tn
+      on_hit(target, tn, r)
+      target.take_damage(Util.roll(damage))
+    end
     character.defeat(target.character) unless target.conscious?
   end
 end
@@ -167,7 +170,15 @@ class Character
   end
 
   def unarmed_attacks
-    Util.simplify(bonuses[:unarmed_attacks]).to_f || 1.0
+    [Util.simplify(bonuses[:unarmed_attacks]).to_f, 1.0].max
+  end
+
+  def on_unarmed_strike(target, tn, r)
+    if classes.include?(Monk)
+      if r >= (tn + 5)
+        puts "name rolled #{r} for tn #{tn}, this stuns for 1d6 rounds"
+      end
+    end
   end
 
   def defeat(target)
@@ -312,6 +323,14 @@ SKILLS = {
       :unarmed_to_hit  => "1",
       :unarmed_attacks => "1"
     }
+  },
+  :crushing_blow => {
+    :name => :crushing_blow,
+    :cost => 1,
+    :bonuses => {
+      :unarmed_damage => "base1d10"
+    },
+    :prereqs => [:karate]
   }
 }
 
@@ -350,9 +369,6 @@ class CharClass
       (class << self; self; end).send(:define_method, :requirements) do
         h
       end
-    end
-
-    def on_unarmed_strike(opponent)
     end
 
     def first_level(h)

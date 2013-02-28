@@ -3,6 +3,8 @@ require "mocha/setup"
 require File.expand_path("../../lib/character", __FILE__)
 require "debugger"
 
+
+# need to do some test refactoring
 class CharacterTest < Test::Unit::TestCase
   # # wishful_thinking: I want to make this work:
 
@@ -127,6 +129,11 @@ class CharacterTest < Test::Unit::TestCase
     assert_equal 17, c.con
     assert_equal 17, c.wis
 
+    opponent = current_user.generate_character(:name => 'opponent', :scheme => :three_dice_twice)
+    opponent.set_attrs!
+    assert opponent.take_level Fighter
+    assert_equal 1.0, c.unarmed_attacks
+
     assert c.can_take_level?
     assert c.take_level Monk
     assert_equal "1d3", c.unarmed_damage
@@ -136,5 +143,21 @@ class CharacterTest < Test::Unit::TestCase
     assert c.levels.first.take_skill(:boxing)
     assert_equal 4.0, c.unarmed_attacks
     assert_equal "1d6 2.0", c.unarmed_damage
+    assert c.levels.first.take_skill(:crushing_blow)
+    assert_equal "1d10 2.0", c.unarmed_damage
+
+    # first swing will hit and the monk will stun the opponent
+    Util.stubs(:roll).with("1d20").returns 20
+    Util.stubs(:roll).with("1d10 2.0").returns 7
+    cs = c.new_state
+    os = opponent.new_state
+
+    r = Round.new nil, [cs, os]
+    assert_equal r.action_order, [cs, cs, cs, cs, os]
+    r.fight_round
+
+    assert cs.conscious?
+    assert !os.conscious?
+    assert r.finished?
   end
 end
