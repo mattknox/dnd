@@ -34,7 +34,7 @@ class CharacterTest < Test::Unit::TestCase
     Util.stubs(:roll).with("3d6").returns 12
     c.set_attrs!
     assert_equal 12, c.str
-    assert c.can_be?(Fighter), "str is high enough, so fighter should be available?"
+    assert c.can_be?(Fighter), "str is high enough, so fighter should be available"
     assert !c.can_be?(Paladin)
     assert c.take_level Fighter
     assert_equal 10, c.hp

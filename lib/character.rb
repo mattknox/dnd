@@ -1,6 +1,8 @@
 # for now, this holds my second pass at implementing AD&D-style character generation,
 # and ultimately, fighting in a CLI.
 
+# need to add transcripting, so every action in a fight is recorded, and also movement
+
 require File.expand_path("../util", __FILE__)
 
 class User
@@ -331,6 +333,15 @@ SKILLS = {
       :unarmed_damage => "base1d10"
     },
     :prereqs => [:karate]
+  },
+  :katana => {
+    :name => :katana,
+    :cost => 1,
+    :weapon => true,
+    :bonuses => {
+      :to_hit => "2",
+      :damage => "1d10"
+    }
   }
 }
 
@@ -422,10 +433,10 @@ class Weapon
   end
 
   def self.find_by_name(name)
-    raise unless :katana == name
-    # TODO: generalize a bit.
+    skill = SKILLS[name]
+    return unless skill && skill[:weapon]
 
-    return Weapon.new(:name => :katana, :damage => "1d10")
+    return Weapon.new(:name => skill[:name], :damage => skill[:bonuses][:damage])
   end
 end
 
